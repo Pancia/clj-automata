@@ -1,9 +1,12 @@
 (ns clojure-automata.core
   (:import [javax.swing JPanel JFrame]
-           [java.awt Color Graphics image.BufferedImage])
+           [java.awt Color Graphics]
+           (java.awt.image BufferedImage))
   (:use [seesaw.core :only [native! frame pack! show! 
                             border-panel canvas select 
-                            button flow-panel label]]))
+                            button flow-panel label to-root]]
+        [clojure.pprint :only [pprint]])
+  (:gen-class))
 
 (set! *warn-on-reflection* true)
 (native!)
@@ -16,9 +19,9 @@
 (defn new-board
   ([] (new-board dim-board))
   ([[x y]]
-  (for [x (range x)]
-    (for [y (range y)]
-      (if (< (rand-int 100) %start-alive) :on :off)))))
+   (for [x (range x)]
+     (for [y (range y)]
+       (if (< (rand-int 100) %start-alive) :on :off)))))
 
 (defn with-coords [board]
   (for [[row-idx row] (map-indexed vector board)]
@@ -100,43 +103,47 @@
     (.repaint panel)))
 
 (defn seesaw-automata []
-  (letfn [(get-canvas [frame] (select frame [:#canvas]))
+  (letfn [(^JPanel get-canvas [frame] (select frame [:#canvas]))
           (resume! [] (reset! is-running true))
           (pause! [] (reset! is-running nil))
           (start! [board-ref] (do (reset! board-ref (new-board)) (resume!)))
           (swap-rules! [board-ref] 
-            (reset! the-rules 
-              (if (some #{:dying} (flatten @board-ref)) 
-                  game-of-life-rules 
-                  brians-brain-rules)))]
+                       (reset! the-rules
+                               (if (some #{:dying} (flatten @board-ref))
+                                 game-of-life-rules
+                                 brians-brain-rules)))]
     (let [[screen-x screen-y] dim-screen
           img (BufferedImage. screen-x screen-y BufferedImage/TYPE_INT_ARGB)
           the-board (atom (new-board))
           my-frame (frame :title "Clojure Automata" 
-                      :on-close :exit
-                      :content 
-                        (border-panel :hgap 5 :vgap 5 :border 5
-                          :center 
-                            (canvas :id :canvas 
-                              :paint (fn [c g] (render-board g img @the-board))
-                              :size [screen-x :by screen-y])
-                          :north (label :text "NORTH" :halign :center)
-                          :south (flow-panel :vgap 10
-                                    :items [(button :text "Resume!" 
-                                              :listen [:action (fn [_] (resume!))])
-                                            (button :text "Pause!" 
-                                              :listen [:action (fn [_] (pause!))])
-                                            (button :text "Start!" 
-                                              :listen [:action (fn [_] (start! the-board))])
-                                            (button :text "Swap Games!" 
-                                              :listen [:action (fn [_] (swap-rules! the-board))])
-                                            ;TODO: Add 'Single' step function])
-                          :east   "EAST"
-                          :west   "WEST"))]
+                          :on-close :exit
+                          :content
+                          (border-panel :hgap 5 :vgap 5 :border 5
+                                        :center
+                                        (canvas :id :canvas
+                                                :paint (fn [c g] (render-board g img @the-board))
+                                                :size [screen-x :by screen-y])
+                                        :north (label :text "NORTH" :halign :center)
+                                        :south (flow-panel :vgap 10
+                                                           :items [(button :text "Play!"
+                                                                           :listen [:action (fn [_] (resume!))])
+                                                                   (button :text "Pause!"
+                                                                           :listen [:action (fn [_] (pause!))])
+                                                                   (button :text "New Board!"
+                                                                           :listen [:action (fn [_] (start! the-board))])
+                                                                   (button :text "Swap Games!"
+                                                                           :listen [:action (fn [_] (swap-rules! the-board))])
+                                                                   (button :text "Step"
+                                                                           :listen [:action (fn [e] (do
+                                                                                                      (pause!)
+                                                                                                      (update-board! the-board)
+                                                                                                      (.repaint (get-canvas (to-root e)))))])])
+                                        :east   "EAST"
+                                        :west   "WEST"))]
       (-> my-frame pack! show!)
       (future (activity-loop (get-canvas my-frame) the-board))
       (add-watch is-running :watch-change 
-        (fn [_ _ _ newval] (if newval (future (activity-loop (get-canvas my-frame) the-board))))))))
+                 (fn [_ _ _ newval] (if newval (future (activity-loop (get-canvas my-frame) the-board))))))))
 
 (defn -main []
   (seesaw-automata))

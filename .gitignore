@@ -4,7 +4,15 @@
 /checkouts
 *.jar
 *.class
+*.iml
 .lein-deps-sum
 .lein-failures
 .lein-plugins
 .lein-repl-history
+.nrepl-port
+.idea
+
+#TEMPORARY
+/doc/
+README.md
+/test/
