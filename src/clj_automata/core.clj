@@ -1,4 +1,4 @@
-(ns clojure-automata.core
+(ns clj-automata.core
   (:import [javax.swing JPanel JFrame]
            [java.awt Color Graphics]
            (java.awt.image BufferedImage))
